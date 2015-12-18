@@ -91,3 +91,45 @@ https://github.com/kubernetes/kubernetes/blob/release-1.1/docs/getting-started-g
 
 I applied the policy-kit changes for libvirt so that I would not be constantly asked for a password.
 I also am working off of a clone of the kubernetes repo that I checked out the `v1.1.3` tag.   If you do this instead of downloading a binary release you will need to run `make release` in the root directory.  This will require docker and a few other tools.  In my Fedora 23 install I had everything except for the Go docker image, and it prompted me to see if I wanted to download it.
+
+After it built. I then continued on.
+
+```
+export KUBERNETES_PROVIDER=libvirt-coreos
+cluster/kube-up.sh
+```
+
+This starts to look right, the nodes spin up and the networks are created.  Then I get back:
+`Nb ready minions: 0 / 3`  This is no good.  I try to connect to the master at 192.168.10.1 but I get no responce.
+
+Just to verify that they are actually running we can look at what libvirt has to say
+```bash
+virsh -c qemu:///system list
+ Id    Name                           State
+----------------------------------------------------
+ 34    kubernetes-minion-1            running
+ 35    kubernetes-minion-2            running
+ 36    kubernetes-minion-3            running
+ 37    kubernetes-master              running
+```
+
+So the nodes are all up, including the minions.  I have not been able to connect to the master so it is expected that querying the cluster state will fail:
+```bash
+kubectl get nodes
+error: couldn't read version from server: Get http://192.168.10.1:8080/api: dial tcp 192.168.10.1:8080: no route to host
+```
+
+Pulling up a shell on the master node I see this:
+```text
+This is localhost (Linux x86_64 4.3.3-coreos) 19:45:44
+SSH host key: SHA256:/rEblzE1UibyId2BVdDUztcVKmZf/mt/8TXYaABK5oc (DSA)
+SSH host key: SHA256:DVnKLP/43LT731mngUuyW8iu0lLS0GHqQM5gpbe91zU (ED25519)
+SSH host key: SHA256:O5pefA195VI/X/VPKlEDeSBrBXLgrpoMQId95bKNSGE (RSA)
+eth0:  fe80::5054:ff:fe00:3
+eth1:  fe80::5054:ff:fe00:103
+
+localhost login: 
+```
+This is no good.  I have network interfaces, but no IP, just MAC addresses.  Something went wrong when the instances spin up.
+
+Working off of the HEAD of master branch does not seem to make any difference.
